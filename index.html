@@ -222,10 +222,6 @@ table.gt{width:100%;min-width:1200px;border-collapse:separate;border-spacing:0;t
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
         Xem trước PDF
       </button>
-      <button class="btn primary" id="btnSave" type="button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
-        Lưu
-      </button>
     </div>
   </div>
 </header>
@@ -414,15 +410,15 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(autosizeAll);
 function setStatus(mode){
   const el=$("#status"); let cls="",txt="";
   if(mode==="saving"){cls="busy";txt="Đang lưu…"}
-  else if(dirty){cls="dirty";txt="Có thay đổi chưa lưu"}
-  else if(savedAt){cls="ok";txt="Đã lưu lúc "+hhmm(savedAt)+(storeMode==="local"?" · trên thiết bị này":"")}
-  else{txt="Chưa lưu"}
+  else if(dirty){cls="dirty";txt="Đang chờ lưu…"}
+  else if(savedAt){cls="ok";txt="Đã tự động lưu lúc "+hhmm(savedAt)+(storeMode==="local"?" · trên thiết bị này":"")}
+  else{txt="Tự động lưu"}
   el.className="status "+cls; el.textContent=txt;
 }
 function touch(){
   rev++; dirty=true; setStatus();
   clearTimeout(draftTimer);
-  draftTimer=setTimeout(()=>lsSet({json:JSON.stringify(state),dirty:true,savedAt}),400);
+  draftTimer=setTimeout(save,600);
 }
 let toastT=null;
 function toast(msg,actLabel,act){
@@ -434,7 +430,7 @@ function toast(msg,actLabel,act){
 }
 
 async function save(){
-  if(saving)return;
+  if(saving){clearTimeout(draftTimer);draftTimer=setTimeout(save,500);return}
   saving=true; setStatus("saving");
   const myRev=rev, json=JSON.stringify(state), now=new Date().toISOString();
   clearTimeout(draftTimer);
@@ -448,7 +444,6 @@ async function save(){
   if(cloud||!db){
     storeMode=cloud?"cloud":"local"; savedAt=now; dirty=(myRev!==rev);
     setStatus();
-    toast(cloud?"Đã lưu":"Đã lưu trên thiết bị này");
   }else{
     setStatus();
     toast("Không lưu được lên máy chủ – bản nháp vẫn được giữ trên thiết bị");
@@ -545,7 +540,7 @@ $("#btnDelList").addEventListener("click",()=>{
   });
 });
 $("#btnReopen").addEventListener("click",toggleFinish);
-$("#btnSave").addEventListener("click",save);
+window.addEventListener("pagehide",()=>{if(dirty){clearTimeout(draftTimer);lsSet({json:JSON.stringify(state),dirty:false,savedAt:new Date().toISOString()})}});
 document.addEventListener("keydown",e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();save()}
   if(e.key==="Escape"&&!$("#modal").hidden)closePreview();
